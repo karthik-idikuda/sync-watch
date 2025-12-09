@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SyncWatch - Watch Together</title>
+    <meta name="description" content="Watch videos together with friends. Supports YouTube, Vimeo, Twitch, and more!">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.youtube.com">
+    <link rel="preconnect" href="https://player.vimeo.com">
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+</head>
+<body>
+    <!-- Room Settings Modal -->
+    <div class="modal-overlay" id="room-settings-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> Room Settings</h3>
+                <button onclick="closeRoomSettings()" class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <strong>Lock Room</strong>
+                        <p>Prevent new users from joining</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="lock-room-toggle" onchange="toggleRoomLock(this)">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Landing Screen -->
+    <div id="landing-page">
+        <div class="landing-bg">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="gradient-orb orb-3"></div>
+        </div>
+        <div class="landing-content">
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <i class="fas fa-play"></i>
+                </div>
+                <h1>Sync<span>Watch</span></h1>
+                <p>Watch videos together, perfectly synchronized</p>
+                
+                <!-- Supported Platforms -->
+                <div class="platform-badges">
+                    <span class="platform-badge"><i class="fab fa-youtube"></i></span>
+                    <span class="platform-badge"><i class="fab fa-vimeo-v"></i></span>
+                    <span class="platform-badge"><i class="fab fa-twitch"></i></span>
+                    <span class="platform-badge"><i class="fab fa-dailymotion"></i></span>
+                    <span class="platform-badge"><i class="fab fa-google-drive"></i></span>
+                    <span class="platform-badge"><i class="fas fa-film"></i></span>
+                </div>
+            </div>
+            
+            <!-- Username & Avatar Section -->
+            <div class="user-profile-setup">
+                <div class="avatar-selector">
+                    <button id="avatar-btn" onclick="toggleAvatarMenu()">👤</button>
+                    <div id="avatar-menu" class="avatar-menu hidden">
+                        <span onclick="selectAvatar('👤')">👤</span>
+                        <span onclick="selectAvatar('🐱')">🐱</span>
+                        <span onclick="selectAvatar('🐶')">🐶</span>
+                        <span onclick="selectAvatar('🦊')">🦊</span>
+                        <span onclick="selectAvatar('🦁')">🦁</span>
+                        <span onclick="selectAvatar('🐯')">🐯</span>
+                        <span onclick="selectAvatar('🐻')">🐻</span>
+                        <span onclick="selectAvatar('🐼')">🐼</span>
+                        <span onclick="selectAvatar('🐨')">🐨</span>
+                        <span onclick="selectAvatar('🦄')">🦄</span>
+                        <span onclick="selectAvatar('🤖')">🤖</span>
+                        <span onclick="selectAvatar('👽')">👽</span>
+                        <span onclick="selectAvatar('👻')">👻</span>
+                        <span onclick="selectAvatar('🤡')">🤡</span>
+                        <span onclick="selectAvatar('😎')">😎</span>
+                        <span onclick="selectAvatar('🤓')">🤓</span>
+                    </div>
+                </div>
+                <div class="username-section">
+                    <label for="username-input">Your display name</label>
+                    <input type="text" id="username-input" placeholder="Enter your name..." maxlength="20">
+                </div>
+            </div>
+            
+            <div class="action-cards">
+                <div class="action-card" onclick="showCreateRoomModal()">
+                    <div class="card-icon"><i class="fas fa-plus"></i></div>
+                    <h3>Create Room</h3>
+                    <p>Start a new watch party</p>
+                </div>
+                
+                <div class="divider">
+                    <span>or</span>
+                </div>
+                
+                <div class="join-section">
+                    <h3>Join Existing Room</h3>
+                    <div class="input-group">
+                        <input type="text" id="room-code-input" placeholder="Enter room code...">
+                        <button onclick="checkRoomForJoin()" class="btn-join">
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature Highlights -->
+            <div class="feature-highlights">
+                <div class="feature-item">
+                    <i class="fas fa-sync"></i>
+                    <span>Perfect Sync</span>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-video"></i>
+                    <span>Video Chat</span>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-comments"></i>
+                    <span>Live Chat</span>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-keyboard"></i>
+                    <span>Shortcuts</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app-container" class="hidden">
+        <!-- Animated Background -->
+        <div class="app-bg-effects">
+            <div class="cyber-grid"></div>
+            <div class="floating-particles" id="particles"></div>
+            <div class="glow-orb glow-1"></div>
+            <div class="glow-orb glow-2"></div>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="mini-logo">
+                    <div class="logo-pulse"></div>
+                    <i class="fas fa-play"></i>
+                    <span>Sync<span class="accent">Watch</span></span>
+                </div>
+                <button id="toggle-sidebar-btn" class="icon-btn glass-btn" title="Toggle Sidebar (T)">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <div class="room-info-card">
+                <div class="room-badge">
+                    <div class="badge-glow"></div>
+                    <span class="room-label"><i class="fas fa-door-open"></i> ROOM</span>
+                    <span class="room-code" id="display-room-code">---</span>
+                </div>
+                <div class="room-actions">
+                    <button onclick="copyRoomCode()" class="action-btn" title="Copy Code">
+                        <i class="far fa-copy"></i>
+                    </button>
+                    <button onclick="openShareModal()" class="action-btn" title="Share Room">
+                        <i class="fas fa-share-nodes"></i>
+                    </button>
+                    <button onclick="showRoomSettings()" class="action-btn" id="room-settings-btn" title="Settings" style="display:none">
+                        <i class="fas fa-gear"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Connection Status -->
+            <div class="connection-status" id="connection-status">
+                <div class="status-indicator">
+                    <span class="status-dot connected"></span>
+                    <span class="status-ring"></span>
+                </div>
+                <span class="status-text">Connected</span>
+                <span class="latency-badge">~20ms</span>
+            </div>
+            
+            <!-- Participants -->
+            <div class="participants-section glass-panel">
+                <div class="section-header">
+                    <h4><i class="fas fa-users"></i> Viewers</h4>
+                    <span class="count-badge" id="user-count">1</span>
+                </div>
+                <div class="webcam-grid" id="video-grid">
+                    <div class="webcam-card local">
+                        <div class="webcam-glow"></div>
+                        <video id="local-video" autoplay muted playsinline></video>
+                        <div class="webcam-overlay">
+                            <span class="webcam-label" id="local-username">You</span>
+                            <div class="audio-indicator">
+                                <span></span><span></span><span></span>
+                            </div>
+                        </div>
+                        <span class="host-badge hidden" id="host-badge"><i class="fas fa-crown"></i> Host</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Video Queue -->
+            <div class="queue-section glass-panel">
+                <div class="section-header">
+                    <h4><i class="fas fa-layer-group"></i> Queue</h4>
+                    <span class="count-badge" id="queue-count">0</span>
+                </div>
+                <div class="queue-list" id="queue-list">
+                    <div class="queue-empty">
+                        <i class="fas fa-inbox"></i>
+                        <p>Queue is empty</p>
+                    </div>
+                </div>
+                <button onclick="clearQueue()" class="btn-clear-queue neon-btn" id="clear-queue-btn" style="display:none;">
+                    <i class="fas fa-trash-can"></i> Clear All
+                </button>
+            </div>
+            
+            <!-- Controls -->
+            <div class="media-controls">
+                <button id="toggle-mic-btn" class="control-btn active" title="Mic (M)">
+                    <i class="fas fa-microphone"></i>
+                    <span class="btn-label">Mic</span>
+                </button>
+                <button id="toggle-cam-btn" class="control-btn active" title="Camera (C)">
+                    <i class="fas fa-video"></i>
+                    <span class="btn-label">Cam</span>
+                </button>
+                <button id="leave-btn" class="control-btn danger" title="Leave Room">
+                    <i class="fas fa-right-from-bracket"></i>
+                    <span class="btn-label">Leave</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="main-content">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="url-bar">
+                    <div class="url-input-wrapper">
+                        <div class="input-icon">
+                            <i class="fas fa-link"></i>
+                            <span class="icon-pulse"></span>
+                        </div>
+                        <input type="text" id="video-url-input" placeholder="Paste video URL • YouTube, Vimeo, HLS streams, or direct links...">
+                        <div class="input-actions">
+                            <button onclick="loadVideo()" class="btn-load neon-btn primary" title="Load video">
+                                <i class="fas fa-bolt"></i>
+                                <span>Load</span>
+                            </button>
+                            <button onclick="addToQueue()" class="btn-queue neon-btn" title="Add to queue">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="top-bar-actions">
+                    <label for="subtitle-upload" class="action-btn glass-btn" title="Upload Subtitles">
+                        <i class="fas fa-closed-captioning"></i>
+                        <input type="file" id="subtitle-upload" accept=".vtt,.srt" style="display:none" onchange="loadSubtitles(this)">
+                    </label>
+                    <button onclick="loadTestVideo()" class="action-btn glass-btn" title="Load Demo">
+                        <i class="fas fa-flask-vial"></i>
+                    </button>
+                    <button onclick="openShortcutsModal()" class="action-btn glass-btn" title="Keyboard Shortcuts">
+                        <i class="fas fa-keyboard"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Video Section -->
+            <div class="video-section">
+                <!-- Player -->
+                <div class="player-wrapper" id="player-wrapper">
+                    <div class="player-frame">
+                        <div class="frame-corner tl"></div>
+                        <div class="frame-corner tr"></div>
+                        <div class="frame-corner bl"></div>
+                        <div class="frame-corner br"></div>
+                    </div>
+                    
+                    <video id="main-video" playsinline></video>
+                    <div id="youtube-player-container">
+                        <div id="youtube-player"></div>
+                    </div>
+                    <div id="vimeo-player-container">
+                        <div id="vimeo-player"></div>
+                    </div>
+                    <iframe id="twitch-player" allowfullscreen></iframe>
+                    <iframe id="dailymotion-player" allowfullscreen></iframe>
+                    
+                    <!-- Overlay -->
+                    <div class="player-overlay" id="player-overlay">
+                        <div class="overlay-top">
+                            <div class="video-info">
+                                <div class="video-title" id="video-title">No video loaded</div>
+                                <div class="video-platform" id="video-platform"></div>
+                            </div>
+                            <div class="live-indicator hidden" id="live-indicator">
+                                <span class="live-dot"></span> LIVE
+                            </div>
+                        </div>
+                        
+                        <div class="player-controls">
+                            <div class="progress-wrapper">
+                                <div class="progress-bar" id="progress-container">
+                                    <div class="progress-buffered" id="progress-buffered"></div>
+                                    <div class="progress-filled" id="progress-bar">
+                                        <div class="progress-glow"></div>
+                                    </div>
+                                    <div class="progress-thumb" id="progress-thumb">
+                                        <div class="thumb-ring"></div>
+                                    </div>
+                                    <div class="progress-tooltip" id="progress-tooltip">0:00</div>
+                                </div>
+                                <div class="time-display">
+                                    <span id="current-time">0:00</span>
+                                    <span class="time-separator">/</span>
+                                    <span id="duration">0:00</span>
+                                </div>
+                            </div>
+                            
+                            <div class="controls-row">
+                                <div class="controls-left">
+                                    <button id="play-pause-btn" class="ctrl-btn primary-ctrl" title="Play/Pause (Space)">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                    <button id="skip-back-btn" class="ctrl-btn" title="Back 10s (←)">
+                                        <i class="fas fa-rotate-left"></i>
+                                        <span class="skip-label">10</span>
+                                    </button>
+                                    <button id="skip-forward-btn" class="ctrl-btn" title="Forward 10s (→)">
+                                        <i class="fas fa-rotate-right"></i>
+                                        <span class="skip-label">10</span>
+                                    </button>
+                                    <div class="volume-control">
+                                        <button id="volume-btn" class="ctrl-btn" title="Mute (M)">
+                                            <i class="fas fa-volume-high"></i>
+                                        </button>
+                                        <div class="volume-slider-wrapper">
+                                            <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1">
+                                            <div class="volume-track"></div>
+                                        </div>
+                                    </div>
+                                    <div class="speed-control">
+                                        <button id="speed-btn" class="ctrl-btn speed-indicator" title="Playback Speed">
+                                            <span>1x</span>
+                                        </button>
+                                        <div class="speed-menu" id="speed-menu">
+                                            <div class="speed-menu-inner">
+                                                <button data-speed="0.25">0.25x</button>
+                                                <button data-speed="0.5">0.5x</button>
+                                                <button data-speed="0.75">0.75x</button>
+                                                <button data-speed="1" class="active">1x</button>
+                                                <button data-speed="1.25">1.25x</button>
+                                                <button data-speed="1.5">1.5x</button>
+                                                <button data-speed="1.75">1.75x</button>
+                                                <button data-speed="2">2x</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="controls-right">
+                                    <button id="pip-btn" class="ctrl-btn" title="Picture-in-Picture (P)">
+                                        <i class="fas fa-clone"></i>
+                                    </button>
+                                    <button id="theater-btn" class="ctrl-btn" title="Theater Mode (T)">
+                                        <i class="fas fa-up-right-and-down-left-from-center"></i>
+                                    </button>
+                                    <button id="fullscreen-btn" class="ctrl-btn" title="Fullscreen (F)">
+                                        <i class="fas fa-expand"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Big Play Button -->
+                    <div class="big-play-btn" id="big-play-btn">
+                        <div class="play-btn-rings">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <i class="fas fa-play"></i>
+                    </div>
+                    
+                    <!-- Loading State -->
+                    <div class="loading-state" id="loading-state">
+                        <div class="cyber-loader">
+                            <div class="loader-ring"></div>
+                            <div class="loader-ring"></div>
+                            <div class="loader-ring"></div>
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <p>Loading stream...</p>
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div class="empty-state" id="empty-state">
+                        <div class="empty-icon">
+                            <div class="icon-glow"></div>
+                            <i class="fas fa-clapperboard"></i>
+                        </div>
+                        <h3>Ready to Stream</h3>
+                        <p>Paste any video URL to start watching together</p>
+                        <div class="supported-platforms">
+                            <div class="platform-chip youtube"><i class="fab fa-youtube"></i> YouTube</div>
+                            <div class="platform-chip vimeo"><i class="fab fa-vimeo-v"></i> Vimeo</div>
+                            <div class="platform-chip twitch"><i class="fab fa-twitch"></i> Twitch</div>
+                            <div class="platform-chip hls"><i class="fas fa-signal-stream"></i> HLS</div>
+                            <div class="platform-chip direct"><i class="fas fa-file-video"></i> Direct</div>
+                        </div>
+                    </div>
+
+                    <!-- Sync Indicator -->
+                    <div class="sync-indicator" id="sync-indicator">
+                        <i class="fas fa-arrows-rotate"></i>
+                        <span>Syncing...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Section -->
+            <div class="chat-container glass-panel" id="chat-container">
+                <div class="chat-header">
+                    <div class="chat-title">
+                        <i class="fas fa-comments"></i>
+                        <span>Live Chat</span>
+                        <span class="chat-badge" id="unread-count"></span>
+                    </div>
+                    <div class="chat-actions">
+                        <button id="toggle-chat-btn" class="icon-btn" title="Minimize">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="system-message">
+                        <i class="fas fa-sparkles"></i>
+                        Welcome to the room! Start watching together 🎬
+                    </div>
+                </div>
+                <div class="typing-indicator" id="typing-indicator">
+                    <span class="typing-avatar">👤</span>
+                    <span class="typing-name"></span> is typing
+                    <span class="typing-dots"><span></span><span></span><span></span></span>
+                </div>
+                <div class="chat-input-area">
+                    <div class="emoji-quick">
+                        <button onclick="sendReaction('❤️')" class="emoji-btn">❤️</button>
+                        <button onclick="sendReaction('😂')" class="emoji-btn">😂</button>
+                        <button onclick="sendReaction('🔥')" class="emoji-btn">🔥</button>
+                        <button onclick="sendReaction('👏')" class="emoji-btn">👏</button>
+                        <button onclick="sendReaction('😮')" class="emoji-btn">😮</button>
+                        <button onclick="sendReaction('🎉')" class="emoji-btn">🎉</button>
+                    </div>
+                    <div class="input-row">
+                        <input type="text" id="chat-input" placeholder="Send a message...">
+                        <button onclick="sendMessage()" class="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Room Modal -->
+    <div class="modal-overlay" id="create-room-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus-circle"></i> Create Room</h3>
+                <button onclick="closeCreateRoomModal()" class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Set Room Password (Optional)</label>
+                    <input type="password" id="create-room-password" placeholder="Leave empty for public room">
+                </div>
+                <button onclick="createRoom()" class="btn-primary full-width">Create Room</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Password Modal -->
+    <div class="modal-overlay" id="join-password-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-lock"></i> Password Required</h3>
+                <button onclick="closeJoinPasswordModal()" class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">This room is protected by a password.</p>
+                <div class="form-group">
+                    <input type="password" id="join-room-password" placeholder="Enter password">
+                </div>
+                <button onclick="joinRoomWithPassword()" class="btn-primary full-width">Join Room</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="modal-overlay" id="share-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-share-alt"></i> Share Room</h3>
+                <button onclick="closeShareModal()" class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="share-url">
+                    <input type="text" id="share-url-input" readonly>
+                    <button onclick="copyShareUrl()" class="btn-copy">
+                        <i class="far fa-copy"></i> Copy
+                    </button>
+                </div>
+                <div class="qr-code-container" id="qr-code"></div>
+                <div class="share-buttons">
+                    <button onclick="shareVia('whatsapp')" class="share-btn whatsapp">
+                        <i class="fab fa-whatsapp"></i>
+                    </button>
+                    <button onclick="shareVia('telegram')" class="share-btn telegram">
+                        <i class="fab fa-telegram"></i>
+                    </button>
+                    <button onclick="shareVia('twitter')" class="share-btn twitter">
+                        <i class="fab fa-twitter"></i>
+                    </button>
+                    <button onclick="shareVia('email')" class="share-btn email">
+                        <i class="fas fa-envelope"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div class="modal-overlay" id="shortcuts-modal">
+        <div class="modal-content shortcuts-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-keyboard"></i> Keyboard Shortcuts</h3>
+                <button onclick="closeShortcutsModal()" class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="shortcuts-grid">
+                    <div class="shortcut-group">
+                        <h4>Playback</h4>
+                        <div class="shortcut-item"><kbd>Space</kbd> <span>Play / Pause</span></div>
+                        <div class="shortcut-item"><kbd>←</kbd> <span>Rewind 10s</span></div>
+                        <div class="shortcut-item"><kbd>→</kbd> <span>Forward 10s</span></div>
+                        <div class="shortcut-item"><kbd>J</kbd> <span>Rewind 10s</span></div>
+                        <div class="shortcut-item"><kbd>L</kbd> <span>Forward 10s</span></div>
+                        <div class="shortcut-item"><kbd>K</kbd> <span>Play / Pause</span></div>
+                        <div class="shortcut-item"><kbd>0-9</kbd> <span>Seek to 0-90%</span></div>
+                    </div>
+                    <div class="shortcut-group">
+                        <h4>Volume</h4>
+                        <div class="shortcut-item"><kbd>↑</kbd> <span>Volume Up</span></div>
+                        <div class="shortcut-item"><kbd>↓</kbd> <span>Volume Down</span></div>
+                        <div class="shortcut-item"><kbd>M</kbd> <span>Mute / Unmute</span></div>
+                    </div>
+                    <div class="shortcut-group">
+                        <h4>Speed</h4>
+                        <div class="shortcut-item"><kbd>></kbd> <span>Increase Speed</span></div>
+                        <div class="shortcut-item"><kbd><</kbd> <span>Decrease Speed</span></div>
+                    </div>
+                    <div class="shortcut-group">
+                        <h4>View</h4>
+                        <div class="shortcut-item"><kbd>F</kbd> <span>Fullscreen</span></div>
+                        <div class="shortcut-item"><kbd>T</kbd> <span>Theater Mode</span></div>
+                        <div class="shortcut-item"><kbd>P</kbd> <span>Picture-in-Picture</span></div>
+                        <div class="shortcut-item"><kbd>?</kbd> <span>Show Shortcuts</span></div>
+                        <div class="shortcut-item"><kbd>Esc</kbd> <span>Exit Modal/Fullscreen</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Reactions -->
+    <div id="reactions-container"></div>
+
+    <!-- External APIs -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="https://player.vimeo.com/api/player.js"></script>
+    <!-- HLS.js for streaming support -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
